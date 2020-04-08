@@ -2030,13 +2030,18 @@ namespace MediaBrowser.Controller.MediaEncoding
             }
 
             // If we're hardware VAAPI decoding and software encoding, download frames from the decoder first
+<<<<<<< HEAD
             else if ((videoDecoder ?? string.Empty).IndexOf("vaapi", StringComparison.OrdinalIgnoreCase) != -1
+=======
+            else if (string.Equals(options.HardwareAccelerationType, "vaapi", StringComparison.OrdinalIgnoreCase)
+>>>>>>> be538d427787bfd167489745961a734c4d3abc7f
                 && string.Equals(outputVideoCodec, "libx264", StringComparison.OrdinalIgnoreCase))
             {
                 var codec = videoStream.Codec.ToLowerInvariant();
                 //var pixelFormat = videoStream.PixelFormat.ToLowerInvariant();
                 var IsColorDepth10 = (videoStream.Profile ?? string.Empty).IndexOf("10", StringComparison.OrdinalIgnoreCase) != -1;
 
+<<<<<<< HEAD
                 // Assert 10-bit hardware VAAPI decodable
                 if (IsColorDepth10 && (string.Equals(codec, "hevc", StringComparison.OrdinalIgnoreCase)
                     || string.Equals(codec, "h265", StringComparison.OrdinalIgnoreCase)
@@ -2053,6 +2058,15 @@ namespace MediaBrowser.Controller.MediaEncoding
 
                 // Assert 8-bit hardware VAAPI decodable
                 else if (!IsColorDepth10)
+=======
+                // Assert hardware VAAPI decodable (Except h264 10-bit and higher color depth)
+				// TODO: a propery way to detect hardware capabilities and falling back when transcoding is failed
+                if ((pixelFormat ?? string.Empty).IndexOf("p10", StringComparison.OrdinalIgnoreCase) == -1
+                    || ((pixelFormat ?? string.Empty).IndexOf("p10", StringComparison.OrdinalIgnoreCase) != -1
+                        && (string.Equals(codec, "hevc", StringComparison.OrdinalIgnoreCase)
+                            || string.Equals(codec, "h265", StringComparison.OrdinalIgnoreCase)
+                            || string.Equals(codec, "vp9", StringComparison.OrdinalIgnoreCase))))
+>>>>>>> be538d427787bfd167489745961a734c4d3abc7f
                 {
                     filters.Add("hwdownload");
                     filters.Add("format=nv12");
