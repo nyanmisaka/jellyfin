@@ -2016,11 +2016,11 @@ namespace MediaBrowser.Controller.MediaEncoding
                 && string.Equals(outputVideoCodec, "libx264", StringComparison.OrdinalIgnoreCase))
             {
                 var codec = videoStream.Codec.ToLowerInvariant();
-                var IsColorDepth10 = (videoStream.Profile ?? string.Empty).IndexOf("Main 10", StringComparison.OrdinalIgnoreCase) != -1
-                    || (videoStream.Profile ?? string.Empty).IndexOf("High 10", StringComparison.OrdinalIgnoreCase) != -1;
+                var isColorDepth10 = !string.IsNullOrEmpty(videoStream.Profile) && (videoStream.Profile.Contains("Main 10", StringComparison.OrdinalIgnoreCase)
+                    || videoStream.Profile.Contains("High 10", StringComparison.OrdinalIgnoreCase));
 
                 // Assert 10-bit hardware VAAPI decodable
-                if (IsColorDepth10 && (string.Equals(codec, "hevc", StringComparison.OrdinalIgnoreCase)
+                if (isColorDepth10 && (string.Equals(codec, "hevc", StringComparison.OrdinalIgnoreCase)
                     || string.Equals(codec, "h265", StringComparison.OrdinalIgnoreCase)
                     || string.Equals(codec, "vp9", StringComparison.OrdinalIgnoreCase)))
                 {
@@ -2034,7 +2034,7 @@ namespace MediaBrowser.Controller.MediaEncoding
                 }
 
                 // Assert 8-bit hardware VAAPI decodable
-                else if (!IsColorDepth10)
+                else if (!isColorDepth10)
                 {
                     filters.Add("hwdownload");
                     filters.Add("format=nv12");
@@ -2523,8 +2523,8 @@ namespace MediaBrowser.Controller.MediaEncoding
         {
             var videoType = state.MediaSource.VideoType ?? VideoType.VideoFile;
             var videoStream = state.VideoStream;
-            var IsColorDepth10 = (videoStream.Profile ?? string.Empty).IndexOf("Main 10", StringComparison.OrdinalIgnoreCase) != -1
-                || (videoStream.Profile ?? string.Empty).IndexOf("High 10", StringComparison.OrdinalIgnoreCase) != -1;
+            var isColorDepth10 = !string.IsNullOrEmpty(videoStream.Profile) && (videoStream.Profile.Contains("Main 10", StringComparison.OrdinalIgnoreCase)
+                || videoStream.Profile.Contains("High 10", StringComparison.OrdinalIgnoreCase));
 
             if (string.Equals(state.OutputVideoCodec, "copy", StringComparison.OrdinalIgnoreCase))
             {
@@ -2544,7 +2544,7 @@ namespace MediaBrowser.Controller.MediaEncoding
                 && !string.IsNullOrEmpty(encodingOptions.HardwareAccelerationType))
             {
                 // Only hevc and vp9 formats have 10-bit hardware decoder support now.
-                if (IsColorDepth10 && !(string.Equals(videoStream.Codec, "hevc", StringComparison.OrdinalIgnoreCase)
+                if (isColorDepth10 && !(string.Equals(videoStream.Codec, "hevc", StringComparison.OrdinalIgnoreCase)
                     || string.Equals(videoStream.Codec, "h265", StringComparison.OrdinalIgnoreCase)
                     || string.Equals(videoStream.Codec, "vp9", StringComparison.OrdinalIgnoreCase)))
                 {
@@ -2566,7 +2566,7 @@ namespace MediaBrowser.Controller.MediaEncoding
                         case "h265":
                             if (_mediaEncoder.SupportsDecoder("hevc_qsv") && encodingOptions.HardwareDecodingCodecs.Contains("hevc", StringComparer.OrdinalIgnoreCase))
                             {
-                                if (IsColorDepth10)
+                                if (isColorDepth10)
                                 {
                                     if (encodingOptions.EnableDecodingColorDepth10)
                                     {
@@ -2600,7 +2600,7 @@ namespace MediaBrowser.Controller.MediaEncoding
                         case "vp9":
                             if (_mediaEncoder.SupportsDecoder("vp9_qsv") && encodingOptions.HardwareDecodingCodecs.Contains("vp9", StringComparer.OrdinalIgnoreCase))
                             {
-                                if (IsColorDepth10)
+                                if (isColorDepth10)
                                 {
                                     if (encodingOptions.EnableDecodingColorDepth10)
                                     {
@@ -2631,7 +2631,7 @@ namespace MediaBrowser.Controller.MediaEncoding
                         case "h265":
                             if (_mediaEncoder.SupportsDecoder("hevc_cuvid") && encodingOptions.HardwareDecodingCodecs.Contains("hevc", StringComparer.OrdinalIgnoreCase))
                             {
-                                if (IsColorDepth10)
+                                if (isColorDepth10)
                                 {
                                     if (encodingOptions.EnableDecodingColorDepth10)
                                     {
@@ -2671,7 +2671,7 @@ namespace MediaBrowser.Controller.MediaEncoding
                         case "vp9":
                             if (_mediaEncoder.SupportsDecoder("vp9_cuvid") && encodingOptions.HardwareDecodingCodecs.Contains("vp9", StringComparer.OrdinalIgnoreCase))
                             {
-                                if (IsColorDepth10)
+                                if (isColorDepth10)
                                 {
                                     if (encodingOptions.EnableDecodingColorDepth10)
                                     {
@@ -2702,7 +2702,7 @@ namespace MediaBrowser.Controller.MediaEncoding
                         case "h265":
                             if (_mediaEncoder.SupportsDecoder("hevc_mediacodec") && encodingOptions.HardwareDecodingCodecs.Contains("hevc", StringComparer.OrdinalIgnoreCase))
                             {
-                                if (IsColorDepth10)
+                                if (isColorDepth10)
                                 {
                                     if (encodingOptions.EnableDecodingColorDepth10)
                                     {
@@ -2736,7 +2736,7 @@ namespace MediaBrowser.Controller.MediaEncoding
                         case "vp9":
                             if (_mediaEncoder.SupportsDecoder("vp9_mediacodec") && encodingOptions.HardwareDecodingCodecs.Contains("vp9", StringComparer.OrdinalIgnoreCase))
                             {
-                                if (IsColorDepth10)
+                                if (isColorDepth10)
                                 {
                                     if (encodingOptions.EnableDecodingColorDepth10)
                                     {
@@ -2793,7 +2793,7 @@ namespace MediaBrowser.Controller.MediaEncoding
                             return GetHwaccelType(state, encodingOptions, "h264");
                         case "hevc":
                         case "h265":
-                            if (IsColorDepth10)
+                            if (isColorDepth10)
                             {
                                 if (encodingOptions.EnableDecodingColorDepth10)
                                 {
@@ -2811,7 +2811,7 @@ namespace MediaBrowser.Controller.MediaEncoding
                         case "mpeg4":
                             return GetHwaccelType(state, encodingOptions, "mpeg4");
                         case "vp9":
-                            if (IsColorDepth10)
+                            if (isColorDepth10)
                             {
                                 if (encodingOptions.EnableDecodingColorDepth10)
                                 {
@@ -2834,7 +2834,7 @@ namespace MediaBrowser.Controller.MediaEncoding
                             return GetHwaccelType(state, encodingOptions, "h264");
                         case "hevc":
                         case "h265":
-                            if (IsColorDepth10)
+                            if (isColorDepth10)
                             {
                                 if (encodingOptions.EnableDecodingColorDepth10)
                                 {
@@ -2852,7 +2852,7 @@ namespace MediaBrowser.Controller.MediaEncoding
                         case "vp8":
                             return GetHwaccelType(state, encodingOptions, "vp8");
                         case "vp9":
-                            if (IsColorDepth10)
+                            if (isColorDepth10)
                             {
                                 if (encodingOptions.EnableDecodingColorDepth10)
                                 {
