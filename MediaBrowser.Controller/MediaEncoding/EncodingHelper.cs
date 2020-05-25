@@ -73,7 +73,8 @@ namespace MediaBrowser.Controller.MediaEncoding
                     {"omx",                  hwEncoder + "_omx"},
                     {hwEncoder + "_v4l2m2m", hwEncoder + "_v4l2m2m"},
                     {"mediacodec",           hwEncoder + "_mediacodec"},
-                    {"vaapi",                hwEncoder + "_vaapi"}
+                    {"vaapi",                hwEncoder + "_vaapi"},
+                    {"videotoolbox",         hwEncoder + "_videotoolbox"}
                 };
 
                 if (!string.IsNullOrEmpty(hwType)
@@ -103,12 +104,8 @@ namespace MediaBrowser.Controller.MediaEncoding
                 return false;
             }
 
-            if (!_mediaEncoder.SupportsHwaccel("vaapi"))
-            {
-                return false;
-            }
+            if _mediaEncoder.SupportsHwaccel("vaapi");
 
-            return true;
         }
 
         /// <summary>
@@ -451,11 +448,15 @@ namespace MediaBrowser.Controller.MediaEncoding
             var arg = new StringBuilder();
             var videoDecoder = GetHardwareAcceleratedVideoDecoder(state, encodingOptions);
             var outputVideoCodec = GetVideoEncoder(state, encodingOptions);
+            bool isVaapiDecoder = (videoDecoder ?? string.Empty).IndexOf("vaapi", StringComparison.OrdinalIgnoreCase) != -1;
+            bool isVaapiEncoder = (outputVideoCodec ?? string.Empty).IndexOf("vaapi", StringComparison.OrdinalIgnoreCase) != -1;
+            bool isQsvDecoder = (videoDecoder ?? string.Empty).IndexOf("qsv", StringComparison.OrdinalIgnoreCase) != -1;
+            bool isQsvEncoder = (outputVideoCodec ?? string.Empty).IndexOf("qsv", StringComparison.OrdinalIgnoreCase) != -1;
 
-            if (state.IsVideoRequest && string.Equals(encodingOptions.HardwareAccelerationType, "vaapi", StringComparison.OrdinalIgnoreCase))
+            if (state.IsVideoRequest
+                && string.Equals(encodingOptions.HardwareAccelerationType, "vaapi", StringComparison.OrdinalIgnoreCase))
             {
-                // While using VAAPI decoder
-                if ((videoDecoder ?? string.Empty).IndexOf("vaapi", StringComparison.OrdinalIgnoreCase) != -1)
+                if (isVaapiDecoder)
                 {
                     arg.Append("-hwaccel_output_format vaapi ")
                         .Append("-vaapi_device ")
@@ -463,8 +464,7 @@ namespace MediaBrowser.Controller.MediaEncoding
                         .Append(" ");
                 }
                 // While using SW decoder and VAAPI encoder
-                else if ((videoDecoder ?? string.Empty).IndexOf("vaapi", StringComparison.OrdinalIgnoreCase) == -1
-                    && (outputVideoCodec ?? string.Empty).IndexOf("vaapi", StringComparison.OrdinalIgnoreCase) != -1)
+                else if (!isVaapiDecoder && isVaapiEncoder)
                 {
                     arg.Append("-vaapi_device ")
                         .Append(encodingOptions.VaapiDevice)
@@ -472,17 +472,16 @@ namespace MediaBrowser.Controller.MediaEncoding
                 }
             }
 
-            if (state.IsVideoRequest && string.Equals(encodingOptions.HardwareAccelerationType, "qsv", StringComparison.OrdinalIgnoreCase))
+            if (state.IsVideoRequest
+                && string.Equals(encodingOptions.HardwareAccelerationType, "qsv", StringComparison.OrdinalIgnoreCase))
             {
                 var hasTextSubs = state.SubtitleStream != null && state.SubtitleStream.IsTextSubtitleStream && state.SubtitleDeliveryMethod == SubtitleDeliveryMethod.Encode;
 
                 if (!hasTextSubs)
                 {
-                    // While using QSV encoder
-                    if ((outputVideoCodec ?? string.Empty).IndexOf("qsv", StringComparison.OrdinalIgnoreCase) != -1)
+                     if (isQsvEncoder)
                     {
-                        // While using QSV decoder
-                        if ((videoDecoder ?? string.Empty).IndexOf("qsv", StringComparison.OrdinalIgnoreCase) != -1)
+                        if (isQsvDecoder)
                         {
                             arg.Append("-hwaccel qsv ");
                         }
@@ -540,6 +539,8 @@ namespace MediaBrowser.Controller.MediaEncoding
                 || codec.IndexOf("hevc", StringComparison.OrdinalIgnoreCase) != -1;
         }
 
+        // TODO This is auto inserted into the mpegts mux so it might not be needed
+        // https://www.ffmpeg.org/ffmpeg-bitstream-filters.html#h264_005fmp4toannexb
         public string GetBitStreamArgs(MediaStream stream)
         {
             if (IsH264(stream))
@@ -564,8 +565,8 @@ namespace MediaBrowser.Controller.MediaEncoding
             {
                 if (string.Equals(videoCodec, "libvpx", StringComparison.OrdinalIgnoreCase))
                 {
-                    // With vpx when crf is used, b:v becomes a max rate
-                    // https://trac.ffmpeg.org/wiki/vpxEncodingGuide.
+                    // When crf is used with vpx, b:v becomes a max rate
+                    // https://trac.ffmpeg.org/wiki/Encode/VP9
                     return string.Format(
                         CultureInfo.InvariantCulture,
                         " -maxrate:v {0} -bufsize:v {1} -b:v {0}",
@@ -2570,17 +2571,8 @@ namespace MediaBrowser.Controller.MediaEncoding
                         case "h265":
                             if (_mediaEncoder.SupportsDecoder("hevc_qsv") && encodingOptions.HardwareDecodingCodecs.Contains("hevc", StringComparer.OrdinalIgnoreCase))
                             {
-                                if (isColorDepth10)
-                                {
-                                    if (encodingOptions.EnableDecodingColorDepth10)
-                                    {
-                                        return "-c:v hevc_qsv";
-                                    }
-
-                                    return null;
-                                }
-
-                                return "-c:v hevc_qsv";
+                                return (isColorDepth10 &&
+                                    !encodingOptions.EnableDecodingColorDepth10) ? null : "-c:v hevc_qsv";
                             }
                             break;
                         case "mpeg2video":
@@ -2604,17 +2596,8 @@ namespace MediaBrowser.Controller.MediaEncoding
                         case "vp9":
                             if (_mediaEncoder.SupportsDecoder("vp9_qsv") && encodingOptions.HardwareDecodingCodecs.Contains("vp9", StringComparer.OrdinalIgnoreCase))
                             {
-                                if (isColorDepth10)
-                                {
-                                    if (encodingOptions.EnableDecodingColorDepth10)
-                                    {
-                                        return "-c:v vp9_qsv";
-                                    }
-
-                                    return null;
-                                }
-
-                                return "-c:v vp9_qsv";
+                                return (isColorDepth10 &&
+                                    !encodingOptions.EnableDecodingColorDepth10) ? null : "-c:v vp9_qsv";
                             }
                             break;
                     }
@@ -2628,24 +2611,16 @@ namespace MediaBrowser.Controller.MediaEncoding
                         case "h264":
                             if (_mediaEncoder.SupportsDecoder("h264_cuvid") && encodingOptions.HardwareDecodingCodecs.Contains("h264", StringComparer.OrdinalIgnoreCase))
                             {
-                                return "-c:v h264_cuvid";
+                                return (isColorDepth10 &&
+                                    !encodingOptions.EnableDecodingColorDepth10) ? null : "-c:v h264_cuvid";
                             }
                             break;
                         case "hevc":
                         case "h265":
                             if (_mediaEncoder.SupportsDecoder("hevc_cuvid") && encodingOptions.HardwareDecodingCodecs.Contains("hevc", StringComparer.OrdinalIgnoreCase))
                             {
-                                if (isColorDepth10)
-                                {
-                                    if (encodingOptions.EnableDecodingColorDepth10)
-                                    {
-                                        return "-c:v hevc_cuvid";
-                                    }
-
-                                    return null;
-                                }
-
-                                return "-c:v hevc_cuvid";
+                                return (isColorDepth10 &&
+                                    !encodingOptions.EnableDecodingColorDepth10) ? null : "-c:v hevc_cuvid";
                             }
                             break;
                         case "mpeg2video":
@@ -2675,17 +2650,8 @@ namespace MediaBrowser.Controller.MediaEncoding
                         case "vp9":
                             if (_mediaEncoder.SupportsDecoder("vp9_cuvid") && encodingOptions.HardwareDecodingCodecs.Contains("vp9", StringComparer.OrdinalIgnoreCase))
                             {
-                                if (isColorDepth10)
-                                {
-                                    if (encodingOptions.EnableDecodingColorDepth10)
-                                    {
-                                        return "-c:v vp9_cuvid";
-                                    }
-
-                                    return null;
-                                }
-
-                                return "-c:v vp9_cuvid";
+                                return (isColorDepth10 &&
+                                    !encodingOptions.EnableDecodingColorDepth10) ? null : "-c:v vp9_cuvid";
                             }
                             break;
                     }
@@ -2706,17 +2672,8 @@ namespace MediaBrowser.Controller.MediaEncoding
                         case "h265":
                             if (_mediaEncoder.SupportsDecoder("hevc_mediacodec") && encodingOptions.HardwareDecodingCodecs.Contains("hevc", StringComparer.OrdinalIgnoreCase))
                             {
-                                if (isColorDepth10)
-                                {
-                                    if (encodingOptions.EnableDecodingColorDepth10)
-                                    {
-                                        return "-c:v hevc_mediacodec";
-                                    }
-
-                                    return null;
-                                }
-
-                                return "-c:v hevc_mediacodec";
+                                return (isColorDepth10 &&
+                                    !encodingOptions.EnableDecodingColorDepth10) ? null : "-c:v hevc_mediacodec";
                             }
                             break;
                         case "mpeg2video":
@@ -2740,17 +2697,8 @@ namespace MediaBrowser.Controller.MediaEncoding
                         case "vp9":
                             if (_mediaEncoder.SupportsDecoder("vp9_mediacodec") && encodingOptions.HardwareDecodingCodecs.Contains("vp9", StringComparer.OrdinalIgnoreCase))
                             {
-                                if (isColorDepth10)
-                                {
-                                    if (encodingOptions.EnableDecodingColorDepth10)
-                                    {
-                                        return "-c:v vp9_mediacodec";
-                                    }
-
-                                    return null;
-                                }
-
-                                return "-c:v vp9_mediacodec";
+                                return (isColorDepth10 &&
+                                    !encodingOptions.EnableDecodingColorDepth10) ? null : "-c:v vp9_mediacodec";
                             }
                             break;
                     }
