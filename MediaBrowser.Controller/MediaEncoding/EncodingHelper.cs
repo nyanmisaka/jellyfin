@@ -2577,7 +2577,7 @@ namespace MediaBrowser.Controller.MediaEncoding
                             if (_mediaEncoder.SupportsDecoder("hevc_qsv") && encodingOptions.HardwareDecodingCodecs.Contains("hevc", StringComparer.OrdinalIgnoreCase))
                             {
                                 return (isColorDepth10 &&
-                                    !encodingOptions.EnableDecodingColorDepth10) ? null : "-c:v hevc_qsv";
+                                    !encodingOptions.EnableDecodingColorDepth10Hevc) ? null : "-c:v hevc_qsv";
                             }
                             break;
                         case "mpeg2video":
@@ -2602,7 +2602,7 @@ namespace MediaBrowser.Controller.MediaEncoding
                             if (_mediaEncoder.SupportsDecoder("vp9_qsv") && encodingOptions.HardwareDecodingCodecs.Contains("vp9", StringComparer.OrdinalIgnoreCase))
                             {
                                 return (isColorDepth10 &&
-                                    !encodingOptions.EnableDecodingColorDepth10) ? null : "-c:v vp9_qsv";
+                                    !encodingOptions.EnableDecodingColorDepth10Vp9) ? null : "-c:v vp9_qsv";
                             }
                             break;
                     }
@@ -2615,8 +2615,7 @@ namespace MediaBrowser.Controller.MediaEncoding
                         case "h264":
                             if (_mediaEncoder.SupportsDecoder("h264_cuvid") && encodingOptions.HardwareDecodingCodecs.Contains("h264", StringComparer.OrdinalIgnoreCase))
                             {
-                                return (isColorDepth10 &&
-                                    !encodingOptions.EnableDecodingColorDepth10) ? null : "-c:v h264_cuvid";
+                                return "-c:v h264_cuvid";
                             }
                             break;
                         case "hevc":
@@ -2624,7 +2623,7 @@ namespace MediaBrowser.Controller.MediaEncoding
                             if (_mediaEncoder.SupportsDecoder("hevc_cuvid") && encodingOptions.HardwareDecodingCodecs.Contains("hevc", StringComparer.OrdinalIgnoreCase))
                             {
                                 return (isColorDepth10 &&
-                                    !encodingOptions.EnableDecodingColorDepth10) ? null : "-c:v hevc_cuvid";
+                                    !encodingOptions.EnableDecodingColorDepth10Hevc) ? null : "-c:v hevc_cuvid";
                             }
                             break;
                         case "mpeg2video":
@@ -2655,7 +2654,7 @@ namespace MediaBrowser.Controller.MediaEncoding
                             if (_mediaEncoder.SupportsDecoder("vp9_cuvid") && encodingOptions.HardwareDecodingCodecs.Contains("vp9", StringComparer.OrdinalIgnoreCase))
                             {
                                 return (isColorDepth10 &&
-                                    !encodingOptions.EnableDecodingColorDepth10) ? null : "-c:v vp9_cuvid";
+                                    !encodingOptions.EnableDecodingColorDepth10Vp9) ? null : "-c:v vp9_cuvid";
                             }
                             break;
                     }
@@ -2676,7 +2675,7 @@ namespace MediaBrowser.Controller.MediaEncoding
                             if (_mediaEncoder.SupportsDecoder("hevc_mediacodec") && encodingOptions.HardwareDecodingCodecs.Contains("hevc", StringComparer.OrdinalIgnoreCase))
                             {
                                 return (isColorDepth10 &&
-                                    !encodingOptions.EnableDecodingColorDepth10) ? null : "-c:v hevc_mediacodec";
+                                    !encodingOptions.EnableDecodingColorDepth10Hevc) ? null : "-c:v hevc_mediacodec";
                             }
                             break;
                         case "mpeg2video":
@@ -2701,7 +2700,7 @@ namespace MediaBrowser.Controller.MediaEncoding
                             if (_mediaEncoder.SupportsDecoder("vp9_mediacodec") && encodingOptions.HardwareDecodingCodecs.Contains("vp9", StringComparer.OrdinalIgnoreCase))
                             {
                                 return (isColorDepth10 &&
-                                    !encodingOptions.EnableDecodingColorDepth10) ? null : "-c:v vp9_mediacodec";
+                                    !encodingOptions.EnableDecodingColorDepth10Vp9) ? null : "-c:v vp9_mediacodec";
                             }
                             break;
                     }
@@ -2747,7 +2746,7 @@ namespace MediaBrowser.Controller.MediaEncoding
                         case "hevc":
                         case "h265":
                             return (isColorDepth10 &&
-                                    !encodingOptions.EnableDecodingColorDepth10) ? null : GetHwaccelType(state, encodingOptions, "hevc");
+                                    !encodingOptions.EnableDecodingColorDepth10Hevc) ? null : GetHwaccelType(state, encodingOptions, "hevc");
                         case "mpeg2video":
                             return GetHwaccelType(state, encodingOptions, "mpeg2video");
                         case "vc1":
@@ -2756,7 +2755,7 @@ namespace MediaBrowser.Controller.MediaEncoding
                             return GetHwaccelType(state, encodingOptions, "mpeg4");
                         case "vp9":
                             return (isColorDepth10 &&
-                                    !encodingOptions.EnableDecodingColorDepth10) ? null : GetHwaccelType(state, encodingOptions, "vp9");
+                                    !encodingOptions.EnableDecodingColorDepth10Vp9) ? null : GetHwaccelType(state, encodingOptions, "vp9");
                     }
                 }
                 else if (string.Equals(encodingOptions.HardwareAccelerationType, "vaapi", StringComparison.OrdinalIgnoreCase))
@@ -2769,7 +2768,7 @@ namespace MediaBrowser.Controller.MediaEncoding
                         case "hevc":
                         case "h265":
                             return (isColorDepth10 &&
-                                    !encodingOptions.EnableDecodingColorDepth10) ? null : GetHwaccelType(state, encodingOptions, "hevc");
+                                    !encodingOptions.EnableDecodingColorDepth10Hevc) ? null : GetHwaccelType(state, encodingOptions, "hevc");
                         case "mpeg2video":
                             return GetHwaccelType(state, encodingOptions, "mpeg2video");
                         case "vc1":
@@ -2778,7 +2777,7 @@ namespace MediaBrowser.Controller.MediaEncoding
                             return GetHwaccelType(state, encodingOptions, "vp8");
                         case "vp9":
                             return (isColorDepth10 &&
-                                    !encodingOptions.EnableDecodingColorDepth10) ? null : GetHwaccelType(state, encodingOptions, "vp9");
+                                    !encodingOptions.EnableDecodingColorDepth10Vp9) ? null : GetHwaccelType(state, encodingOptions, "vp9");
                     }
                 }
                 else if (string.Equals(encodingOptions.HardwareAccelerationType, "videotoolbox", StringComparison.OrdinalIgnoreCase))
@@ -2787,27 +2786,39 @@ namespace MediaBrowser.Controller.MediaEncoding
                     {
                         case "avc":
                         case "h264":
-                            if (_mediaEncoder.SupportsDecoder("h264_videotoolbox") && encodingOptions.HardwareDecodingCodecs.Contains("h264", StringComparer.OrdinalIgnoreCase))
+                            if (_mediaEncoder.SupportsDecoder("h264_opencl") && encodingOptions.HardwareDecodingCodecs.Contains("h264", StringComparer.OrdinalIgnoreCase))
                             {
-                                return "-c:v h264_videotoolbox";
+                                return "-c:v h264_opencl";
                             }
                             break;
                         case "mpeg2video":
-                            if (_mediaEncoder.SupportsDecoder("mpeg2_videotoolbox") && encodingOptions.HardwareDecodingCodecs.Contains("mpeg2video", StringComparer.OrdinalIgnoreCase))
+                            if (_mediaEncoder.SupportsDecoder("mpeg2_opencl") && encodingOptions.HardwareDecodingCodecs.Contains("mpeg2video", StringComparer.OrdinalIgnoreCase))
                             {
-                                return "-c:v mpeg2_videotoolbox";
+                                return "-c:v mpeg2_opencl";
                             }
                             break;
                         case "mpeg4":
-                            if (_mediaEncoder.SupportsDecoder("mpeg4_videotoolbox") && encodingOptions.HardwareDecodingCodecs.Contains("mpeg4", StringComparer.OrdinalIgnoreCase))
+                            if (_mediaEncoder.SupportsDecoder("mpeg4_opencl") && encodingOptions.HardwareDecodingCodecs.Contains("mpeg4", StringComparer.OrdinalIgnoreCase))
                             {
-                                return "-c:v mpeg4_videotoolbox";
+                                return "-c:v mpeg4_opencl";
                             }
                             break;
                         case "vc1":
-                            if (_mediaEncoder.SupportsDecoder("vc1_videotoolbox") && encodingOptions.HardwareDecodingCodecs.Contains("vc1", StringComparer.OrdinalIgnoreCase))
+                            if (_mediaEncoder.SupportsDecoder("vc1_opencl") && encodingOptions.HardwareDecodingCodecs.Contains("vc1", StringComparer.OrdinalIgnoreCase))
                             {
-                                return "-c:v vc1_videotoolbox";
+                                return "-c:v vc1_opencl";
+                            }
+                            break;
+                        case "vp8":
+                            if (_mediaEncoder.SupportsDecoder("vp8_opencl") && encodingOptions.HardwareDecodingCodecs.Contains("vc1", StringComparer.OrdinalIgnoreCase))
+                            {
+                                return "-c:v vp8_opencl";
+                            }
+                            break;
+                        case "vp9":
+                            if (_mediaEncoder.SupportsDecoder("vp9_opencl") && encodingOptions.HardwareDecodingCodecs.Contains("vc1", StringComparer.OrdinalIgnoreCase))
+                            {
+                                return "-c:v vp9_opencl;
                             }
                             break;
                     }
