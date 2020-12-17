@@ -1157,6 +1157,17 @@ namespace MediaBrowser.Controller.MediaEncoding
                 profile = "baseline";
             }
 
+            // libx264, h264_qsv, h264_nvenc and h264_vaapi does not support Constrained High profile, force High in this case.
+            if ((string.Equals(videoEncoder, "libx264", StringComparison.OrdinalIgnoreCase)
+                 || string.Equals(videoEncoder, "h264_qsv", StringComparison.OrdinalIgnoreCase)
+                 || string.Equals(videoEncoder, "h264_nvenc", StringComparison.OrdinalIgnoreCase)
+                 || string.Equals(videoEncoder, "h264_nvenc", StringComparison.OrdinalIgnoreCase))
+                && profile != null
+                && profile.IndexOf("high", StringComparison.OrdinalIgnoreCase) != -1)
+            {
+                profile = "high";
+            }
+
             // Currently hevc_amf only support encoding HEVC Main Profile, otherwise force Main Profile.
             if (!string.Equals(videoEncoder, "hevc_amf", StringComparison.OrdinalIgnoreCase)
                 && profile != null
