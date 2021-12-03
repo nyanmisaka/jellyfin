@@ -315,7 +315,7 @@ namespace Jellyfin.Api.Controllers
                             job = await _transcodingJobHelper.StartFfMpeg(
                                     state,
                                     playlistPath,
-                                    GetCommandLineArguments(playlistPath, state, false, 0),
+                                    GetCommandLineArguments(playlistPath, state, true, 0),
                                     Request,
                                     TranscodingJobType,
                                     cancellationTokenSource)
@@ -1534,7 +1534,7 @@ namespace Jellyfin.Api.Controllers
                             job = await _transcodingJobHelper.StartFfMpeg(
                                 state,
                                 playlistPath,
-                                GetCommandLineArguments(playlistPath, state, true, segmentId),
+                                GetCommandLineArguments(playlistPath, state, false, segmentId),
                                 Request,
                                 TranscodingJobType,
                                 cancellationTokenSource).ConfigureAwait(false);
