@@ -675,7 +675,7 @@ namespace MediaBrowser.Model.Dlna
                     }
                 }
 
-                _logger.LogDebug(
+                _logger.LogInformation(
                     "DirectPlay Result for Profile: {0}, Path: {1}, PlayMethod: {2}, AudioStreamIndex: {3}, SubtitleStreamIndex: {4}, Reasons: {5}",
                     options.Profile.Name ?? "Anonymous Profile",
                     item.Path ?? "Unknown path",
@@ -817,7 +817,7 @@ namespace MediaBrowser.Model.Dlna
                 playlistItem.SetOption(qualifier, "level", videoStream.Level.ToString());
             }
 
-            // prefer matching audio codecs, could do better here
+            // prefer matching audio codecs, could do beter here
             var audioCodecs = ContainerProfile.SplitValue(audioCodec);
             var directAudioStream = candidateAudioStreams.FirstOrDefault(stream => ContainerProfile.ContainsContainer(audioCodecs, stream.Codec));
             playlistItem.AudioCodecs = audioCodecs;
@@ -928,7 +928,7 @@ namespace MediaBrowser.Model.Dlna
                 playlistItem.VideoBitrate = Math.Clamp(currentValue, 64_000, availableBitrateForVideo);
             }
 
-            _logger.LogDebug(
+            _logger.LogInformation(
                 "Transcode Result for Profile: {Profile}, Path: {Path}, PlayMethod: {PlayMethod}, AudioStreamIndex: {AudioStreamIndex}, SubtitleStreamIndex: {SubtitleStreamIndex}, Reasons: {TranscodeReason}",
                 options.Profile?.Name ?? "Anonymous Profile",
                 item.Path ?? "Unknown path",
