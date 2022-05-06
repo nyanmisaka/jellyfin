@@ -35,7 +35,7 @@ namespace MediaBrowser.Controller.MediaEncoding
             SupportedSubtitleCodecs = Array.Empty<string>();
         }
 
-        public TranscodeReason TranscodeReasons
+        public TranscodeReason TranscodeReason
         {
             get
             {
