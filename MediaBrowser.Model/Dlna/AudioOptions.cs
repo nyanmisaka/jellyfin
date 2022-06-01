@@ -27,8 +27,6 @@ namespace MediaBrowser.Model.Dlna
 
         public bool ForceDirectStream { get; set; }
 
-        public bool AllowAudioStreamCopy { get; set; }
-
         public Guid ItemId { get; set; }
 
         public MediaSourceInfo[] MediaSources { get; set; }

@@ -36,7 +36,6 @@ namespace Jellyfin.Extensions.Json
                 new JsonGuidConverter(),
                 new JsonNullableGuidConverter(),
                 new JsonVersionConverter(),
-                new JsonFlagEnumConverterFactory(),
                 new JsonStringEnumConverter(),
                 new JsonNullableStructConverterFactory(),
                 new JsonBoolNumberConverter(),

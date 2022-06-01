@@ -10,7 +10,5 @@ namespace MediaBrowser.Model.Dlna
         public int? AudioStreamIndex { get; set; }
 
         public int? SubtitleStreamIndex { get; set; }
-
-        public bool AllowVideoStreamCopy { get; set; }
     }
 }
