@@ -256,17 +256,9 @@ namespace Jellyfin.Api.Helpers
                 streamInfo.StartPositionTicks = startTimeTicks;
 
                 mediaSource.SupportsDirectPlay = streamInfo.PlayMethod == PlayMethod.DirectPlay;
-
                 // Players do not handle this being set according to PlayMethod
-                mediaSource.SupportsDirectStream =
-                    options.EnableDirectStream
-                        ? streamInfo.PlayMethod == PlayMethod.DirectPlay || streamInfo.PlayMethod == PlayMethod.DirectStream
-                        : streamInfo.PlayMethod == PlayMethod.DirectPlay;
-
-                mediaSource.SupportsTranscoding =
-                    streamInfo.PlayMethod == PlayMethod.DirectStream
-                    || mediaSource.TranscodingContainer != null
-                    || profile.TranscodingProfiles.Any(i => i.Type == streamInfo.MediaType && i.Context == options.Context);
+                mediaSource.SupportsDirectStream = options.EnableDirectStream ? streamInfo.PlayMethod == PlayMethod.DirectPlay || streamInfo.PlayMethod == PlayMethod.DirectStream : streamInfo.PlayMethod == PlayMethod.DirectPlay;
+                mediaSource.SupportsTranscoding = streamInfo.PlayMethod == PlayMethod.DirectStream || mediaSource.TranscodingContainer != null;
 
                 if (item is Audio)
                 {
@@ -298,7 +290,7 @@ namespace Jellyfin.Api.Helpers
                 }
                 else
                 {
-                    if (!mediaSource.SupportsDirectPlay && (mediaSource.SupportsTranscoding || mediaSource.SupportsDirectStream))
+                    if (mediaSource.SupportsTranscoding || mediaSource.SupportsDirectStream)
                     {
                         streamInfo.PlayMethod = PlayMethod.Transcode;
                         mediaSource.TranscodingUrl = streamInfo.ToUrl("-", auth.Token).TrimStart('-');
