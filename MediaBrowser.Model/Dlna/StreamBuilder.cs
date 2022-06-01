@@ -385,7 +385,7 @@ namespace MediaBrowser.Model.Dlna
             // If device requirements are satisfied then allow both direct stream and direct play
             if (item.SupportsDirectPlay)
             {
-                if (IsItemBitrateEligibleForDirectPlayback(item, options.GetMaxBitrate(true) ?? 0, PlayMethod.DirectPlay))
+                if (IsItemBitrateEligibleForDirectPlay(item, options.GetMaxBitrate(true) ?? 0, PlayMethod.DirectPlay))
                 {
                     if (options.EnableDirectPlay)
                     {
@@ -401,7 +401,7 @@ namespace MediaBrowser.Model.Dlna
             // While options takes the network and other factors into account. Only applies to direct stream
             if (item.SupportsDirectStream)
             {
-                if (IsItemBitrateEligibleForDirectPlayback(item, options.GetMaxBitrate(true) ?? 0, PlayMethod.DirectStream))
+                if (IsItemBitrateEligibleForDirectPlay(item, options.GetMaxBitrate(true) ?? 0, PlayMethod.DirectStream))
                 {
                     if (options.EnableDirectStream)
                     {
@@ -604,11 +604,11 @@ namespace MediaBrowser.Model.Dlna
 
             var videoStream = item.VideoStream;
 
-            var directPlayBitrateEligibility = IsBitrateEligibleForDirectPlayback(item, options.GetMaxBitrate(false) ?? 0, options, PlayMethod.DirectPlay);
-            var directStreamBitrateEligibility = IsBitrateEligibleForDirectPlayback(item, options.GetMaxBitrate(false) ?? 0, options, PlayMethod.DirectStream);
-            bool isEligibleForDirectPlay = options.EnableDirectPlay && (options.ForceDirectPlay || directPlayBitrateEligibility == 0);
-            bool isEligibleForDirectStream = options.EnableDirectStream && (options.ForceDirectStream || directStreamBitrateEligibility == 0);
-            var transcodeReasons = directPlayBitrateEligibility | directStreamBitrateEligibility;
+            var directPlayEligibilityResult = IsEligibleForDirectPlay(item, options.GetMaxBitrate(false) ?? 0, options, PlayMethod.DirectPlay);
+            var directStreamEligibilityResult = IsEligibleForDirectPlay(item, options.GetMaxBitrate(false) ?? 0, options, PlayMethod.DirectStream);
+            bool isEligibleForDirectPlay = options.EnableDirectPlay && (options.ForceDirectPlay || directPlayEligibilityResult == 0);
+            bool isEligibleForDirectStream = options.EnableDirectStream && (options.ForceDirectStream || directPlayEligibilityResult == 0);
+            var transcodeReasons = directPlayEligibilityResult | directStreamEligibilityResult;
 
             _logger.LogDebug(
                 "Profile: {0}, Path: {1}, isEligibleForDirectPlay: {2}, isEligibleForDirectStream: {3}",
@@ -625,7 +625,7 @@ namespace MediaBrowser.Model.Dlna
                 var directPlay = directPlayInfo.PlayMethod;
                 transcodeReasons |= directPlayInfo.TranscodeReasons;
 
-                if (directPlay.HasValue)
+                if (directPlay != null)
                 {
                     directPlayProfile = directPlayInfo.Profile;
                     playlistItem.PlayMethod = directPlay.Value;
@@ -676,7 +676,7 @@ namespace MediaBrowser.Model.Dlna
 
             playlistItem.TranscodeReasons = transcodeReasons;
 
-            if (playlistItem.PlayMethod != PlayMethod.DirectStream && playlistItem.PlayMethod != PlayMethod.DirectPlay)
+            if (playlistItem.PlayMethod != PlayMethod.DirectStream || !options.EnableDirectStream)
             {
                 // Can't direct play, find the transcoding profile
                 // If we do this for direct-stream we will overwrite the info
@@ -687,8 +687,6 @@ namespace MediaBrowser.Model.Dlna
 
                     BuildStreamVideoItem(playlistItem, options, item, videoStream, audioStream, candidateAudioStreams, transcodingProfile.Container, transcodingProfile.VideoCodec, transcodingProfile.AudioCodec);
 
-                    playlistItem.PlayMethod = PlayMethod.Transcode;
-
                     if (subtitleStream != null)
                     {
                         var subtitleProfile = GetSubtitleProfile(item, subtitleStream, options.Profile.SubtitleProfiles, PlayMethod.Transcode, _transcoderSupport, transcodingProfile.Container, transcodingProfile.Protocol);
@@ -698,9 +696,14 @@ namespace MediaBrowser.Model.Dlna
                         playlistItem.SubtitleCodecs = new[] { subtitleProfile.Format };
                     }
 
-                    if ((playlistItem.TranscodeReasons & (VideoReasons | TranscodeReason.ContainerBitrateExceedsLimit)) != 0)
+                    if (playlistItem.PlayMethod != PlayMethod.DirectPlay)
                     {
-                        ApplyTranscodingConditions(playlistItem, transcodingProfile.Conditions, null, true, true);
+                        playlistItem.PlayMethod = PlayMethod.Transcode;
+
+                        if ((playlistItem.TranscodeReasons & (VideoReasons | TranscodeReason.ContainerBitrateExceedsLimit)) != 0)
+                        {
+                            ApplyTranscodingConditions(playlistItem, transcodingProfile.Conditions, null, true, true);
+                        }
                     }
                 }
             }
@@ -768,7 +771,7 @@ namespace MediaBrowser.Model.Dlna
 
         private void BuildStreamVideoItem(StreamInfo playlistItem, VideoOptions options, MediaSourceInfo item, MediaStream videoStream, MediaStream audioStream, IEnumerable<MediaStream> candidateAudioStreams, string container, string videoCodec, string audioCodec)
         {
-            // Prefer matching video codecs
+            // prefer matching video codecs
             var videoCodecs = ContainerProfile.SplitValue(videoCodec);
             var directVideoCodec = ContainerProfile.ContainsContainer(videoCodecs, videoStream?.Codec) ? videoStream?.Codec : null;
             if (directVideoCodec != null)
@@ -780,7 +783,7 @@ namespace MediaBrowser.Model.Dlna
 
             playlistItem.VideoCodecs = videoCodecs;
 
-            // Copy video codec options as a starting point, this applies to transcode and direct-stream
+            // copy video codec options as a starting point, this applies to transcode and direct-stream
             playlistItem.MaxFramerate = videoStream?.AverageFrameRate;
             var qualifier = videoStream?.Codec;
             if (videoStream?.Level != null)
@@ -803,7 +806,7 @@ namespace MediaBrowser.Model.Dlna
                 playlistItem.SetOption(qualifier, "level", videoStream.Level.ToString());
             }
 
-            // Prefer matching audio codecs, could do better here
+            // prefer matching audio codecs, could do better here
             var audioCodecs = ContainerProfile.SplitValue(audioCodec);
             var directAudioStream = candidateAudioStreams.FirstOrDefault(stream => ContainerProfile.ContainsContainer(audioCodecs, stream.Codec));
             playlistItem.AudioCodecs = audioCodecs;
@@ -813,7 +816,7 @@ namespace MediaBrowser.Model.Dlna
                 playlistItem.AudioStreamIndex = audioStream.Index;
                 playlistItem.AudioCodecs = new[] { audioStream.Codec };
 
-                // Copy matching audio codec options
+                // copy matching audio codec options
                 playlistItem.AudioSampleRate = audioStream.SampleRate;
                 playlistItem.SetOption(qualifier, "audiochannels", audioStream.Channels.ToString());
 
@@ -1074,7 +1077,7 @@ namespace MediaBrowser.Model.Dlna
             DeviceProfile profile = options.Profile;
             string container = mediaSource.Container;
 
-            // Video
+            // video
             int? width = videoStream?.Width;
             int? height = videoStream?.Height;
             int? bitDepth = videoStream?.BitDepth;
@@ -1086,7 +1089,7 @@ namespace MediaBrowser.Model.Dlna
             bool? isInterlaced = videoStream?.IsInterlaced;
             string videoCodecTag = videoStream?.CodecTag;
             bool? isAvc = videoStream?.IsAVC;
-            // Audio
+            // audio
             var defaultLanguage = audioStream?.Language ?? string.Empty;
             var defaultMarked = audioStream?.IsDefault ?? false;
 
@@ -1215,7 +1218,6 @@ namespace MediaBrowser.Model.Dlna
                     return (Result: (Profile: directPlayProfile, PlayMethod: playMethod, AudioStreamIndex: selectedAudioStream?.Index, TranscodeReason: failureReasons), Order: order, Rank: ranked);
                 })
                 .OrderByDescending(analysis => analysis.Result.PlayMethod)
-                .ThenByDescending(analysis => analysis.Rank)
                 .ThenBy(analysis => analysis.Order)
                 .ToArray()
                 .ToLookup(analysis => analysis.Result.PlayMethod != null);
@@ -1228,7 +1230,7 @@ namespace MediaBrowser.Model.Dlna
                 return profileMatch;
             }
 
-            var failureReasons = analyzedProfiles[false].Select(analysis => analysis.Result).FirstOrDefault().TranscodeReason;
+            var failureReasons = analyzedProfiles[false].OrderBy(a => a.Result.TranscodeReason).ThenBy(analysis => analysis.Order).FirstOrDefault().Result.TranscodeReason;
             if (failureReasons == 0)
             {
                 failureReasons = TranscodeReason.DirectPlayError;
@@ -1274,13 +1276,13 @@ namespace MediaBrowser.Model.Dlna
                 mediaSource.Path ?? "Unknown path");
         }
 
-        private TranscodeReason IsBitrateEligibleForDirectPlayback(
+        private TranscodeReason IsEligibleForDirectPlay(
             MediaSourceInfo item,
             long maxBitrate,
             VideoOptions options,
             PlayMethod playMethod)
         {
-            bool result = IsItemBitrateEligibleForDirectPlayback(item, maxBitrate, playMethod);
+            bool result = IsItemBitrateEligibleForDirectPlay(item, maxBitrate, playMethod);
             if (!result)
             {
                 return TranscodeReason.ContainerBitrateExceedsLimit;
@@ -1448,7 +1450,7 @@ namespace MediaBrowser.Model.Dlna
             return null;
         }
 
-        private bool IsItemBitrateEligibleForDirectPlayback(MediaSourceInfo item, long maxBitrate, PlayMethod playMethod)
+        private bool IsItemBitrateEligibleForDirectPlay(MediaSourceInfo item, long maxBitrate, PlayMethod playMethod)
         {
             // Don't restrict by bitrate if coming from an external domain
             if (item.IsRemote)
