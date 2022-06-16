@@ -128,6 +128,7 @@ namespace MediaBrowser.Controller.MediaEncoding
                    && _mediaEncoder.SupportsFilter("scale_vaapi")
                    && _mediaEncoder.SupportsFilter("deinterlace_vaapi")
                    && _mediaEncoder.SupportsFilter("tonemap_vaapi")
+                   && _mediaEncoder.SupportsFilter("procamp_vaapi")
                    && _mediaEncoder.SupportsFilterWithOption(FilterOptionType.OverlayVaapiFrameSync)
                    && _mediaEncoder.SupportsFilter("hwupload_vaapi");
         }
@@ -2752,7 +2753,13 @@ namespace MediaBrowser.Controller.MediaEncoding
 
             if (string.Equals(hwTonemapSuffix, "vaapi", StringComparison.OrdinalIgnoreCase))
             {
-                args = "tonemap_{0}=format={1}:p=bt709:t=bt709:m=bt709";
+                args = "tonemap_vaapi=format={0}:p=bt709:t=bt709:m=bt709,procamp_vaapi=b={1}:c={2}:extra_hw_frames=16";
+                return string.Format(
+                        CultureInfo.InvariantCulture,
+                        args,
+                        videoFormat ?? "nv12",
+                        options.VppTonemappingBrightness,
+                        options.VppTonemappingContrast);
             }
             else if (string.Equals(hwTonemapSuffix, "vulkan", StringComparison.OrdinalIgnoreCase))
             {
