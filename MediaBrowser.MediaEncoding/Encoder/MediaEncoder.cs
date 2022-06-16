@@ -16,6 +16,7 @@ using MediaBrowser.Common;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Common.Extensions;
 using MediaBrowser.Controller.Configuration;
+using MediaBrowser.Controller.Extensions;
 using MediaBrowser.Controller.MediaEncoding;
 using MediaBrowser.MediaEncoding.Probing;
 using MediaBrowser.Model.Dlna;
@@ -49,6 +50,7 @@ namespace MediaBrowser.MediaEncoding.Encoder
         private readonly IServerConfigurationManager _configurationManager;
         private readonly IFileSystem _fileSystem;
         private readonly ILocalizationManager _localization;
+        private readonly IConfiguration _config;
         private readonly string _startupOptionFFmpegPath;
 
         private readonly SemaphoreSlim _thumbnailResourcePool = new SemaphoreSlim(2, 2);
@@ -95,6 +97,7 @@ namespace MediaBrowser.MediaEncoding.Encoder
             _configurationManager = configurationManager;
             _fileSystem = fileSystem;
             _localization = localization;
+            _config = config;
             _startupOptionFFmpegPath = config.GetValue<string>(Controller.Extensions.ConfigurationExtensions.FfmpegPathKey) ?? string.Empty;
             _jsonSerializerOptions = JsonDefaults.Options;
         }
@@ -390,8 +393,13 @@ namespace MediaBrowser.MediaEncoding.Encoder
             var inputFile = request.MediaSource.Path;
 
             string analyzeDuration = string.Empty;
+            string ffmpegAnalyzeDuration = _config.GetFFmpegAnalyzeDuration() ?? string.Empty;
 
-            if (request.MediaSource.AnalyzeDurationMs > 0)
+            if (!string.IsNullOrEmpty(ffmpegAnalyzeDuration))
+            {
+                analyzeDuration = "-analyzeduration " + ffmpegAnalyzeDuration;
+            }
+            else if (request.MediaSource.AnalyzeDurationMs > 0)
             {
                 analyzeDuration = "-analyzeduration " +
                                   (request.MediaSource.AnalyzeDurationMs * 1000).ToString();
@@ -428,6 +436,19 @@ namespace MediaBrowser.MediaEncoding.Encoder
             }
 
             return EncodingUtils.GetInputArgument(prefix, inputFile, mediaSource.Protocol);
+        }
+
+        /// <summary>
+        /// Gets the input argument for an external subtitle file.
+        /// </summary>
+        /// <param name="inputFile">The input file.</param>
+        /// <returns>System.String.</returns>
+        /// <exception cref="ArgumentException">Unrecognized InputType.</exception>
+        public string GetExternalSubtitleInputArgument(string inputFile)
+        {
+            const string Prefix = "file";
+
+            return EncodingUtils.GetInputArgument(Prefix, inputFile, MediaProtocol.File);
         }
 
         /// <summary>
@@ -635,10 +656,15 @@ namespace MediaBrowser.MediaEncoding.Encoder
                 filters.Add("thumbnail=n=" + (useLargerBatchSize ? "50" : "24"));
             }
 
-            // Use SW tonemap on HDR video stream only when the zscale filter is available.
-            var enableHdrExtraction = string.Equals(videoStream?.VideoRange, "HDR", StringComparison.OrdinalIgnoreCase) && SupportsFilter("zscale");
-            if (enableHdrExtraction)
+            // Use SW tonemap on HDR10/HLG video stream only when the zscale filter is available.
+            var enableHdrExtraction = false;
+
+            if ((string.Equals(videoStream?.ColorTransfer, "smpte2084", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(videoStream?.ColorTransfer, "arib-std-b67", StringComparison.OrdinalIgnoreCase))
+                && SupportsFilter("zscale"))
             {
+                enableHdrExtraction = true;
+
                 filters.Add("zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,tonemap=tonemap=hable:desat=0:peak=100,zscale=t=bt709:m=bt709,format=yuv420p");
             }
 
