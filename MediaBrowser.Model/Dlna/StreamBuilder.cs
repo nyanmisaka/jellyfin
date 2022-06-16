@@ -215,6 +215,9 @@ namespace MediaBrowser.Model.Dlna
                 case ProfileConditionValue.VideoProfile:
                     return TranscodeReason.VideoProfileNotSupported;
 
+                case ProfileConditionValue.VideoRangeType:
+                    return TranscodeReason.VideoRangeTypeNotSupported;
+
                 case ProfileConditionValue.VideoTimestamp:
                     // TODO
                     return null;
@@ -771,6 +774,7 @@ namespace MediaBrowser.Model.Dlna
                             int? videoBitrate = videoStream?.BitRate;
                             double? videoLevel = videoStream?.Level;
                             string videoProfile = videoStream?.Profile;
+                            string videoRangeType = videoStream?.VideoRangeType;
                             float videoFramerate = videoStream == null ? 0 : videoStream.AverageFrameRate ?? videoStream.AverageFrameRate ?? 0;
                             bool? isAnamorphic = videoStream?.IsAnamorphic;
                             bool? isInterlaced = videoStream?.IsInterlaced;
@@ -784,7 +788,7 @@ namespace MediaBrowser.Model.Dlna
                             int? numAudioStreams = item.GetStreamCount(MediaStreamType.Audio);
                             int? numVideoStreams = item.GetStreamCount(MediaStreamType.Video);
 
-                            if (!ConditionProcessor.IsVideoConditionSatisfied(applyCondition, width, height, bitDepth, videoBitrate, videoProfile, videoLevel, videoFramerate, packetLength, timestamp, isAnamorphic, isInterlaced, refFrames, numVideoStreams, numAudioStreams, videoCodecTag, isAvc))
+                            if (!ConditionProcessor.IsVideoConditionSatisfied(applyCondition, width, height, bitDepth, videoBitrate, videoProfile, videoRangeType, videoLevel, videoFramerate, packetLength, timestamp, isAnamorphic, isInterlaced, refFrames, numVideoStreams, numAudioStreams, videoCodecTag, isAvc))
                             {
                                 // LogConditionFailure(options.Profile, "VideoCodecProfile.ApplyConditions", applyCondition, item);
                                 applyConditions = false;
@@ -1063,6 +1067,7 @@ namespace MediaBrowser.Model.Dlna
             int? videoBitrate = videoStream?.BitRate;
             double? videoLevel = videoStream?.Level;
             string videoProfile = videoStream?.Profile;
+            string videoRangeType = videoStream?.VideoRangeType;
             float videoFramerate = videoStream == null ? 0 : videoStream.AverageFrameRate ?? videoStream.AverageFrameRate ?? 0;
             bool? isAnamorphic = videoStream?.IsAnamorphic;
             bool? isInterlaced = videoStream?.IsInterlaced;
@@ -1085,7 +1090,7 @@ namespace MediaBrowser.Model.Dlna
             // Check container conditions
             foreach (ProfileCondition i in conditions)
             {
-                if (!ConditionProcessor.IsVideoConditionSatisfied(i, width, height, bitDepth, videoBitrate, videoProfile, videoLevel, videoFramerate, packetLength, timestamp, isAnamorphic, isInterlaced, refFrames, numVideoStreams, numAudioStreams, videoCodecTag, isAvc))
+                if (!ConditionProcessor.IsVideoConditionSatisfied(i, width, height, bitDepth, videoBitrate, videoProfile, videoRangeType, videoLevel, videoFramerate, packetLength, timestamp, isAnamorphic, isInterlaced, refFrames, numVideoStreams, numAudioStreams, videoCodecTag, isAvc))
                 {
                     LogConditionFailure(profile, "VideoContainerProfile", i, mediaSource);
 
@@ -1108,7 +1113,7 @@ namespace MediaBrowser.Model.Dlna
                     bool applyConditions = true;
                     foreach (ProfileCondition applyCondition in i.ApplyConditions)
                     {
-                        if (!ConditionProcessor.IsVideoConditionSatisfied(applyCondition, width, height, bitDepth, videoBitrate, videoProfile, videoLevel, videoFramerate, packetLength, timestamp, isAnamorphic, isInterlaced, refFrames, numVideoStreams, numAudioStreams, videoCodecTag, isAvc))
+                        if (!ConditionProcessor.IsVideoConditionSatisfied(applyCondition, width, height, bitDepth, videoBitrate, videoProfile, videoRangeType, videoLevel, videoFramerate, packetLength, timestamp, isAnamorphic, isInterlaced, refFrames, numVideoStreams, numAudioStreams, videoCodecTag, isAvc))
                         {
                             // LogConditionFailure(profile, "VideoCodecProfile.ApplyConditions", applyCondition, mediaSource);
                             applyConditions = false;
@@ -1128,7 +1133,7 @@ namespace MediaBrowser.Model.Dlna
 
             foreach (ProfileCondition i in conditions)
             {
-                if (!ConditionProcessor.IsVideoConditionSatisfied(i, width, height, bitDepth, videoBitrate, videoProfile, videoLevel, videoFramerate, packetLength, timestamp, isAnamorphic, isInterlaced, refFrames, numVideoStreams, numAudioStreams, videoCodecTag, isAvc))
+                if (!ConditionProcessor.IsVideoConditionSatisfied(i, width, height, bitDepth, videoBitrate, videoProfile, videoRangeType, videoLevel, videoFramerate, packetLength, timestamp, isAnamorphic, isInterlaced, refFrames, numVideoStreams, numAudioStreams, videoCodecTag, isAvc))
                 {
                     LogConditionFailure(profile, "VideoCodecProfile", i, mediaSource);
 
@@ -1747,6 +1752,26 @@ namespace MediaBrowser.Model.Dlna
                             if (condition.Condition == ProfileConditionType.Equals || condition.Condition == ProfileConditionType.EqualsAny)
                             {
                                 item.SetOption(qualifier, "profile", string.Join(',', values));
+                            }
+
+                            break;
+                        }
+
+                    case ProfileConditionValue.VideoRangeType:
+                        {
+                            if (string.IsNullOrEmpty(qualifier))
+                            {
+                                continue;
+                            }
+
+                            // change from split by | to comma
+                            // strip spaces to avoid having to encode
+                            var values = value
+                                .Split('|', StringSplitOptions.RemoveEmptyEntries);
+
+                            if (condition.Condition == ProfileConditionType.Equals || condition.Condition == ProfileConditionType.EqualsAny)
+                            {
+                                item.SetOption(qualifier, "rangetype", string.Join(',', values));
                             }
 
                             break;

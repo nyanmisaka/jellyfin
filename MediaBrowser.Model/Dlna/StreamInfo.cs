@@ -282,6 +282,29 @@ namespace MediaBrowser.Model.Dlna
         }
 
         /// <summary>
+        /// Gets the target video range type that will be in the output stream.
+        /// </summary>
+        public string TargetVideoRangeType
+        {
+            get
+            {
+                if (IsDirectStream)
+                {
+                    return TargetVideoStream?.VideoRangeType;
+                }
+
+                var targetVideoCodecs = TargetVideoCodec;
+                var videoCodec = targetVideoCodecs.FirstOrDefault();
+                if (!string.IsNullOrEmpty(videoCodec))
+                {
+                    return GetOption(videoCodec, "rangetype");
+                }
+
+                return TargetVideoStream?.VideoRangeType;
+            }
+        }
+
+        /// <summary>
         /// Gets the target video codec tag.
         /// </summary>
         /// <value>The target video codec tag.</value>
