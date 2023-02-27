@@ -5563,20 +5563,39 @@ namespace MediaBrowser.Controller.MediaEncoding
 
         public static int FindIndex(IReadOnlyList<MediaStream> mediaStreams, MediaStream streamToFind)
         {
-            var index = 0;
-            var length = mediaStreams.Count;
+            var streams = mediaStreams.Count;
+            var externalStreams = mediaStreams.Count(s => s.IsExternal);
 
-            for (var i = 0; i < length; i++)
+            // Fallback to the old behavior of external subtitle stream indices in 10.7 and older.
+            if (externalStreams > 0 && !mediaStreams[0].IsExternal)
             {
-                var currentMediaStream = mediaStreams[i];
-                if (currentMediaStream == streamToFind)
-                {
-                    return index;
-                }
+                return streamToFind.Index;
+            }
 
-                if (string.Equals(currentMediaStream.Path, streamToFind.Path, StringComparison.Ordinal))
+            if (!streamToFind.IsExternal)
+            {
+                for (var i = externalStreams; i < streams; i++)
                 {
-                    index++;
+                    var currentMediaStream = mediaStreams[i];
+                    if (currentMediaStream == streamToFind)
+                    {
+                        return currentMediaStream.Index - externalStreams;
+                    }
+                }
+            } else {
+                var index = 0;
+                for (var i = 0; i < externalStreams; i++)
+                {
+                    var currentMediaStream = mediaStreams[i];
+                    if (currentMediaStream == streamToFind)
+                    {
+                        return index;
+                    }
+
+                    if (string.Equals(currentMediaStream.Path, streamToFind.Path, StringComparison.Ordinal))
+                    {
+                        index++;
+                    }
                 }
             }
 
