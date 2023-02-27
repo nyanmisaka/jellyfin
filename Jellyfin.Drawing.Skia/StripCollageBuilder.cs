@@ -99,7 +99,7 @@ namespace Jellyfin.Drawing.Skia
             using var canvas = new SKCanvas(bitmap);
             canvas.Clear(SKColors.Black);
 
-            using var backdrop = SkiaHelper.GetNextValidImage(_skiaEncoder, paths, 0, out _);
+            using var backdrop = GetNextValidImage(paths, 0, out _);
             if (backdrop == null)
             {
                 return bitmap;
@@ -121,12 +121,25 @@ namespace Jellyfin.Drawing.Skia
 
             var typeFace = SKTypeface.FromFamilyName("sans-serif", SKFontStyleWeight.Bold, SKFontStyleWidth.Normal, SKFontStyleSlant.Upright);
 
-            // use the system fallback to find a typeface for the given CJK character
-            var nonCjkPattern = @"[^\p{IsCJKUnifiedIdeographs}\p{IsCJKUnifiedIdeographsExtensionA}\p{IsKatakana}\p{IsHiragana}\p{IsHangulSyllables}\p{IsHangulJamo}]";
-            var filteredName = Regex.Replace(libraryName ?? string.Empty, nonCjkPattern, string.Empty);
-            if (!string.IsNullOrEmpty(filteredName))
+            // supported named blocks in C# Regex:
+            // https://docs.microsoft.com/en-us/dotnet/standard/base-types/character-classes-in-regular-expressions#supported-named-blocks
+            // https://github.com/dotnet/runtime/blob/feae07921934805dc84d8d1c830b22008246b869/src/libraries/System.Text.RegularExpressions/src/System/Text/RegularExpressions/RegexCharClass.cs#L143
+
+            // (CJK characters is a collective term for the Chinese, Japanese, and Korean languages)
+            var nonCjkRegex = new Regex(@"[^\p{IsCJKUnifiedIdeographs}\p{IsCJKUnifiedIdeographsExtensionA}\p{IsKatakana}\p{IsHiragana}\p{IsHangulSyllables}\p{IsHangulJamo}]");
+
+            // removing all non-CJK characters from the library name (eg "日本語 Japan" would become "日本語")
+            var filteredName = nonCjkRegex.Replace(libraryName ?? string.Empty, string.Empty);
+
+            if (!string.IsNullOrWhiteSpace(filteredName))
             {
-                typeFace = SKFontManager.Default.MatchCharacter(null, SKFontStyleWeight.Bold, SKFontStyleWidth.Normal, SKFontStyleSlant.Upright, null, filteredName[0]);
+                // now that filteredName only contains CJK characters we look for a typeface that supports these characters
+                var possibleTypeFace = SKFontManager.Default.MatchCharacter(null, SKFontStyleWeight.Bold, SKFontStyleWidth.Normal, SKFontStyleSlant.Upright, null, filteredName[0]);
+
+                if (possibleTypeFace != null)
+                {
+                    typeFace = possibleTypeFace;
+                }
             }
 
             // draw library name
@@ -152,6 +165,34 @@ namespace Jellyfin.Drawing.Skia
             return bitmap;
         }
 
+        private SKBitmap? GetNextValidImage(IReadOnlyList<string> paths, int currentIndex, out int newIndex)
+        {
+            var imagesTested = new Dictionary<int, int>();
+            SKBitmap? bitmap = null;
+
+            while (imagesTested.Count < paths.Count)
+            {
+                if (currentIndex >= paths.Count)
+                {
+                    currentIndex = 0;
+                }
+
+                bitmap = _skiaEncoder.Decode(paths[currentIndex], false, null, out _);
+
+                imagesTested[currentIndex] = 0;
+
+                currentIndex++;
+
+                if (bitmap != null)
+                {
+                    break;
+                }
+            }
+
+            newIndex = currentIndex;
+            return bitmap;
+        }
+
         private SKBitmap BuildSquareCollageBitmap(IReadOnlyList<string> paths, int width, int height)
         {
             var bitmap = new SKBitmap(width, height);
@@ -164,7 +205,7 @@ namespace Jellyfin.Drawing.Skia
             {
                 for (var y = 0; y < 2; y++)
                 {
-                    using var currentBitmap = SkiaHelper.GetNextValidImage(_skiaEncoder, paths, imageIndex, out int newIndex);
+                    using var currentBitmap = GetNextValidImage(paths, imageIndex, out int newIndex);
                     imageIndex = newIndex;
 
                     if (currentBitmap == null)
