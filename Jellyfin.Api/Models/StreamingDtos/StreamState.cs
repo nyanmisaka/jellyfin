@@ -97,13 +97,13 @@ namespace Jellyfin.Api.Models.StreamingDtos
 
                     if (IsSegmentedLiveStream)
                     {
-                        return 3;
+                        return 4;
                     }
 
                     return 6;
                 }
 
-                return 3;
+                return 4;
             }
         }
 
