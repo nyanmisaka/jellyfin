@@ -1936,6 +1936,12 @@ namespace MediaBrowser.Controller.MediaEncoding
                 return false;
             }
 
+            // FFmpeg can't handle multiple inputs correctly yet
+            if (audioStream.IsExternal)
+            {
+                return false;
+            }
+
             var maxBitDepth = state.GetRequestedAudioBitDepth(audioStream.Codec);
             if (maxBitDepth.HasValue
                 && audioStream.BitDepth.HasValue
