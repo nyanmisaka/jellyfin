@@ -26,11 +26,11 @@ ENV NVIDIA_DRIVER_CAPABILITIES="compute,video,utility"
 
 # https://github.com/intel/compute-runtime/releases
 ARG GMMLIB_VERSION=22.3.0
-ARG IGC_VERSION=1.0.12812.24
-ARG NEO_VERSION=22.49.25018.24
-ARG LEVEL_ZERO_VERSION=1.3.25018.24
+ARG IGC_VERSION=1.0.13230.7
+ARG NEO_VERSION=23.05.25593.11
+ARG LEVEL_ZERO_VERSION=1.3.25593.11
 
-ARG FF_LINK=https://github.com/nyanmisaka/jellyfin-preview/raw/master/jellyfin-ffmpeg/5.1.2-9/jellyfin-ffmpeg5_5.1.2-9-bullseye_amd64.deb
+#ARG FF_LINK=https://github.com/nyanmisaka/jellyfin-preview/raw/master/jellyfin-ffmpeg/5.1.2-9/jellyfin-ffmpeg5_5.1.2-9-bullseye_amd64.deb
 
 # Install dependencies:
 # curl: healthcheck
@@ -43,9 +43,10 @@ RUN apt-get update \
    openssl \
    locales \
    fonts-noto-cjk \
- && wget ${FF_LINK} -O jellyfin-ffmpeg.deb \
- && apt-get install --no-install-recommends --no-install-suggests -y ./jellyfin-ffmpeg.deb \
- && rm -f jellyfin-ffmpeg.deb \
+   jellyfin-ffmpeg5 \
+# && wget ${FF_LINK} -O jellyfin-ffmpeg.deb \
+# && apt-get install --no-install-recommends --no-install-suggests -y ./jellyfin-ffmpeg.deb \
+# && rm -f jellyfin-ffmpeg.deb \
 # Intel VAAPI Tone mapping dependencies:
 # Prefer NEO to Beignet since the latter one doesn't support Comet Lake or newer for now.
 # Do not use the intel-opencl-icd package from repo since they will not build with RELEASE_WITH_REGKEYS enabled.
