@@ -593,6 +593,26 @@ namespace MediaBrowser.Controller.MediaEncoding
                 deviceIndex);
         }
 
+        private string GetVulkanDeviceArgs(int deviceIndex, string deviceName, string srcDeviceAlias, string alias)
+        {
+            alias ??= VulkanAlias;
+            deviceIndex = deviceIndex >= 0
+                ? deviceIndex
+                : 0;
+            var vendorOpts = string.IsNullOrEmpty(deviceName)
+                ? ":" + deviceIndex
+                : ":" + "\"" + deviceName + "\"";
+            var options = string.IsNullOrEmpty(srcDeviceAlias)
+                ? vendorOpts
+                : "@" + srcDeviceAlias;
+
+            return string.Format(
+                CultureInfo.InvariantCulture,
+                " -init_hw_device vulkan={0}{1}",
+                alias,
+                options);
+        }
+
         private string GetOpenclDeviceArgs(int deviceIndex, string deviceVendorName, string srcDeviceAlias, string alias)
         {
             alias ??= OpenclAlias;
@@ -755,32 +775,37 @@ namespace MediaBrowser.Controller.MediaEncoding
                 }
 
                 var filterDevArgs = GetFilterHwDeviceArgs(VaapiAlias);
+                var doOclTonemap = isHwTonemapAvailable && IsOpenclFullSupported();
 
-                if (isHwTonemapAvailable && IsOpenclFullSupported())
+                if (_mediaEncoder.IsVaapiDeviceInteliHD || _mediaEncoder.IsVaapiDeviceInteli965)
                 {
-                    if (_mediaEncoder.IsVaapiDeviceInteliHD || _mediaEncoder.IsVaapiDeviceInteli965)
+                    if (doOclTonemap && !isVaapiDecoder)
                     {
-                        if (!isVaapiDecoder)
-                        {
-                            args.Append(GetOpenclDeviceArgs(0, null, VaapiAlias, OpenclAlias));
-                            filterDevArgs = GetFilterHwDeviceArgs(OpenclAlias);
-                        }
-                    }
-                    else if (_mediaEncoder.IsVaapiDeviceAmd)
-                    {
-                        if (!IsVulkanFullSupported()
-                            || !_mediaEncoder.IsVaapiDeviceSupportVulkanFmtModifier
-                            || Environment.OSVersion.Version < _minKernelVersionAmdVkFmtModifier)
-                        {
-                            args.Append(GetOpenclDeviceArgs(0, "Advanced Micro Devices", null, OpenclAlias));
-                            filterDevArgs = GetFilterHwDeviceArgs(OpenclAlias);
-                        }
-                    }
-                    else
-                    {
-                        args.Append(GetOpenclDeviceArgs(0, null, null, OpenclAlias));
+                        args.Append(GetOpenclDeviceArgs(0, null, VaapiAlias, OpenclAlias));
                         filterDevArgs = GetFilterHwDeviceArgs(OpenclAlias);
                     }
+                }
+                else if (_mediaEncoder.IsVaapiDeviceAmd)
+                {
+                    if (IsVulkanFullSupported()
+                        && _mediaEncoder.IsVaapiDeviceSupportVulkanFmtModifier
+                        && Environment.OSVersion.Version >= _minKernelVersionAmdVkFmtModifier)
+                    {
+                        // libplacebo wants an explicitly set vulkan filter device.
+                        args.Append(GetVulkanDeviceArgs(0, null, VaapiAlias, VulkanAlias));
+                        filterDevArgs = GetFilterHwDeviceArgs(VulkanAlias);
+                    }
+                    else if (doOclTonemap)
+                    {
+                        // ROCm/ROCr OpenCL runtime
+                        args.Append(GetOpenclDeviceArgs(0, "Advanced Micro Devices", null, OpenclAlias));
+                        filterDevArgs = GetFilterHwDeviceArgs(OpenclAlias);
+                    }
+                }
+                else if (doOclTonemap)
+                {
+                    args.Append(GetOpenclDeviceArgs(0, null, null, OpenclAlias));
+                    filterDevArgs = GetFilterHwDeviceArgs(OpenclAlias);
                 }
 
                 args.Append(filterDevArgs);
@@ -4135,7 +4160,10 @@ namespace MediaBrowser.Controller.MediaEncoding
                 // sw => hw
                 if (doVkTonemap)
                 {
-                    mainFilters.Add("hwupload=derive_device=vulkan:extra_hw_frames=16");
+                    mainFilters.Add("hwupload=derive_device=vaapi");
+                    mainFilters.Add("format=vaapi");
+                    mainFilters.Add("hwmap=derive_device=vulkan");
+                    mainFilters.Add("format=vulkan");
                 }
             }
             else if (isVaapiDecoder)
@@ -4165,6 +4193,7 @@ namespace MediaBrowser.Controller.MediaEncoding
             {
                 // map from vaapi to vulkan via vaapi-vulkan interop (Vega/gfx9+).
                 mainFilters.Add("hwmap=derive_device=vulkan");
+                mainFilters.Add("format=vulkan");
             }
 
             // vk tonemap
@@ -4243,10 +4272,15 @@ namespace MediaBrowser.Controller.MediaEncoding
 
                     // prefer vaapi hwupload to vulkan hwupload,
                     // Mesa RADV does not support a dedicated transfer queue.
-                    subFilters.Add("hwupload=derive_device=vaapi,format=vaapi,hwmap=derive_device=vulkan");
+                    subFilters.Add("hwupload=derive_device=vaapi");
+                    subFilters.Add("format=vaapi");
+                    subFilters.Add("hwmap=derive_device=vulkan");
+                    subFilters.Add("format=vulkan");
 
                     overlayFilters.Add("overlay_vulkan=eof_action=endall:shortest=1:repeatlast=0");
-                    overlayFilters.Add("scale_vulkan=format=nv12");
+
+                    // TODO: figure out why libplacebo can sync without vaSyncSurface VPP support in radeonsi.
+                    overlayFilters.Add("libplacebo=format=nv12:apply_filmgrain=0:apply_dolbyvision=0:upscaler=none:downscaler=none:dithering=none");
 
                     // OUTPUT vaapi(nv12/bgra) surface(vram)
                     // reverse-mapping via vaapi-vulkan interop.
