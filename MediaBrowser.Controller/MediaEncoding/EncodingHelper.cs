@@ -65,6 +65,16 @@ namespace MediaBrowser.Controller.MediaEncoding
             "Main10"
         };
 
+        public static readonly string[] LosslessAudioCodecs = new string[]
+        {
+            "alac",
+            "ape",
+            "flac",
+            "mlp",
+            "truehd",
+            "wavpack"
+        };
+
         public EncodingHelper(
             IApplicationPaths appPaths,
             IMediaEncoder mediaEncoder,
@@ -570,6 +580,11 @@ namespace MediaBrowser.Controller.MediaEncoding
             if (string.Equals(codec, "flac", StringComparison.OrdinalIgnoreCase))
             {
                 return "flac";
+            }
+
+            if (string.Equals(codec, "dts", StringComparison.OrdinalIgnoreCase))
+            {
+                return "dca";
             }
 
             return codec.ToLowerInvariant();
@@ -2015,9 +2030,9 @@ namespace MediaBrowser.Controller.MediaEncoding
                 }
             }
 
-            // Video bitrate must fall within requested value
+            // Audio bitrate must fall within requested value
             if (request.AudioBitRate.HasValue
-                && audioStream.BitDepth.HasValue
+                && audioStream.BitRate.HasValue
                 && audioStream.BitRate.Value > request.AudioBitRate.Value)
             {
                 return false;
@@ -2126,56 +2141,55 @@ namespace MediaBrowser.Controller.MediaEncoding
             return Convert.ToInt32(scaleFactor * bitrate);
         }
 
-        public int? GetAudioBitrateParam(BaseEncodingJobOptions request, MediaStream audioStream)
+        public int? GetAudioBitrateParam(BaseEncodingJobOptions request, MediaStream audioStream, int? outputAudioChannels)
         {
-            return GetAudioBitrateParam(request.AudioBitRate, request.AudioCodec, audioStream);
+            return GetAudioBitrateParam(request.AudioBitRate, request.AudioCodec, audioStream, outputAudioChannels);
         }
 
-        public int? GetAudioBitrateParam(int? audioBitRate, string audioCodec, MediaStream audioStream)
+        public int? GetAudioBitrateParam(int? audioBitRate, string audioCodec, MediaStream audioStream, int? outputAudioChannels)
         {
             if (audioStream == null)
             {
                 return null;
             }
 
-            if (audioBitRate.HasValue && string.IsNullOrEmpty(audioCodec))
+            var inputChannels = audioStream.Channels ?? 0;
+            var outputChannels = outputAudioChannels ?? 0;
+            var bitrate = audioBitRate ?? int.MaxValue;
+
+            if (string.IsNullOrEmpty(audioCodec)
+                || string.Equals(audioCodec, "aac", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(audioCodec, "mp3", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(audioCodec, "opus", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(audioCodec, "vorbis", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(audioCodec, "ac3", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(audioCodec, "eac3", StringComparison.OrdinalIgnoreCase))
             {
-                return Math.Min(384000, audioBitRate.Value);
+                return (inputChannels, outputChannels) switch
+                {
+                    (>= 6, >= 6 or 0) => Math.Min(640000, bitrate),
+                    (> 0, > 0) => Math.Min(outputChannels * 128000, bitrate),
+                    (> 0, _) => Math.Min(inputChannels * 128000, bitrate),
+                    (_, _) => Math.Min(384000, bitrate)
+                };
             }
 
-            if (audioBitRate.HasValue && !string.IsNullOrEmpty(audioCodec))
+            if (string.Equals(audioCodec, "dts", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(audioCodec, "dca", StringComparison.OrdinalIgnoreCase))
             {
-                if (string.Equals(audioCodec, "aac", StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(audioCodec, "mp3", StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(audioCodec, "opus", StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(audioCodec, "vorbis", StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(audioCodec, "ac3", StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(audioCodec, "eac3", StringComparison.OrdinalIgnoreCase))
+                return (inputChannels, outputChannels) switch
                 {
-                    if ((audioStream.Channels ?? 0) >= 6)
-                    {
-                        return Math.Min(640000, audioBitRate.Value);
-                    }
-
-                    return Math.Min(384000, audioBitRate.Value);
-                }
-
-                if (string.Equals(audioCodec, "flac", StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(audioCodec, "alac", StringComparison.OrdinalIgnoreCase))
-                {
-                    if ((audioStream.Channels ?? 0) >= 6)
-                    {
-                        return Math.Min(3584000, audioBitRate.Value);
-                    }
-
-                    return Math.Min(1536000, audioBitRate.Value);
-                }
+                    (>= 6, >= 6 or 0) => Math.Min(768000, bitrate),
+                    (> 0, > 0) => Math.Min(outputChannels * 136000, bitrate),
+                    (> 0, _) => Math.Min(inputChannels * 136000, bitrate),
+                    (_, _) => Math.Min(672000, bitrate)
+                };
             }
 
             // Empty bitrate area is not allow on iOS
-            // Default audio bitrate to 128K if it is not being requested
+            // Default audio bitrate to 128K per channel if we don't have codec specific defaults
             // https://ffmpeg.org/ffmpeg-codecs.html#toc-Codec-Options
-            return 128000;
+            return 128000 * (outputAudioChannels ?? audioStream.Channels ?? 2);
         }
 
         public string GetAudioFilterParam(EncodingJobInfo state, EncodingOptions encodingOptions)
@@ -5591,15 +5605,23 @@ namespace MediaBrowser.Controller.MediaEncoding
                 return;
             }
 
-            var inputChannels = audioStream == null ? 6 : audioStream.Channels ?? 6;
+            var inputChannels = audioStream is null ? 6 : audioStream.Channels ?? 6;
+            var shiftAudioCodecs = new List<string>();
             if (inputChannels >= 6)
             {
-                return;
+                // DTS and TrueHD are not supported by HLS
+                // Keep them in the supported codecs list, but shift them to the end of the list so that if transcoding happens, another codec is used
+                shiftAudioCodecs.Add("dca");
+                shiftAudioCodecs.Add("truehd");
+            }
+            else
+            {
+                // Transcoding to 2ch ac3 or eac3 almost always causes a playback failure
+                // Keep them in the supported codecs list, but shift them to the end of the list so that if transcoding happens, another codec is used
+                shiftAudioCodecs.Add("ac3");
+                shiftAudioCodecs.Add("eac3");
             }
 
-            // Transcoding to 2ch ac3 almost always causes a playback failure
-            // Keep it in the supported codecs list, but shift it to the end of the list so that if transcoding happens, another codec is used
-            var shiftAudioCodecs = new[] { "ac3", "eac3" };
             if (audioCodecs.All(i => shiftAudioCodecs.Contains(i, StringComparison.OrdinalIgnoreCase)))
             {
                 return;
@@ -5843,7 +5865,7 @@ namespace MediaBrowser.Controller.MediaEncoding
 
             var bitrate = state.OutputAudioBitrate;
 
-            if (bitrate.HasValue)
+            if (bitrate.HasValue && !LosslessAudioCodecs.Contains(codec, StringComparison.OrdinalIgnoreCase))
             {
                 args += " -ab " + bitrate.Value.ToString(CultureInfo.InvariantCulture);
             }
@@ -5863,8 +5885,10 @@ namespace MediaBrowser.Controller.MediaEncoding
             var audioTranscodeParams = new List<string>();
 
             var bitrate = state.OutputAudioBitrate;
+            var channels = state.OutputAudioChannels;
+            var outputCodec = state.OutputAudioCodec;
 
-            if (bitrate.HasValue)
+            if (bitrate.HasValue && !LosslessAudioCodecs.Contains(outputCodec, StringComparison.OrdinalIgnoreCase))
             {
                 audioTranscodeParams.Add("-ab " + bitrate.Value.ToString(CultureInfo.InvariantCulture));
             }
@@ -5874,7 +5898,12 @@ namespace MediaBrowser.Controller.MediaEncoding
                 audioTranscodeParams.Add("-ac " + state.OutputAudioChannels.Value.ToString(CultureInfo.InvariantCulture));
             }
 
-            if (!string.Equals(state.OutputAudioCodec, "opus", StringComparison.OrdinalIgnoreCase))
+            if (!string.IsNullOrEmpty(outputCodec))
+            {
+                audioTranscodeParams.Add("-acodec " + GetAudioEncoder(state));
+            }
+
+            if (!string.Equals(outputCodec, "opus", StringComparison.OrdinalIgnoreCase))
             {
                 // opus only supports specific sampling rates
                 var sampleRate = state.OutputAudioSampleRate;
