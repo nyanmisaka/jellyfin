@@ -1836,7 +1836,9 @@ namespace Jellyfin.Api.Controllers
                 args += _encodingHelper.GetHlsVideoKeyFrameArguments(state, codec, state.SegmentLength, isEventPlaylist, startNumber);
 
                 // Currenly b-frames in libx265 breaks the FMP4-HLS playback on iOS, disable it for now.
-                if (string.Equals(codec, "libx265", StringComparison.OrdinalIgnoreCase))
+                // FIXME: av1_vaapi encoder (bf > 0) produces unseekable AV1 video, should be fixed in upstream.
+                if (string.Equals(codec, "libx265", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(codec, "av1_vaapi", StringComparison.OrdinalIgnoreCase))
                 {
                     args += " -bf 0";
                 }

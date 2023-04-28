@@ -41,6 +41,7 @@ namespace MediaBrowser.Model.Configuration
             EnableIntelLowPowerHevcHwEncoder = false;
             EnableHardwareEncoding = true;
             AllowHevcEncoding = false;
+            AllowAv1Encoding = false;
             EnableSubtitleExtraction = true;
             AllowOnDemandMetadataBasedKeyframeExtractionForExtensions = new[] { "mkv" };
             HardwareDecodingCodecs = new string[] { "h264", "vc1" };
@@ -121,6 +122,8 @@ namespace MediaBrowser.Model.Configuration
         public bool EnableHardwareEncoding { get; set; }
 
         public bool AllowHevcEncoding { get; set; }
+
+        public bool AllowAv1Encoding { get; set; }
 
         public bool EnableSubtitleExtraction { get; set; }
 
