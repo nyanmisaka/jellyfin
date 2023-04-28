@@ -15,7 +15,7 @@ RUN apk add curl git zlib zlib-dev autoconf g++ make libpng-dev gifsicle alpine-
  && mv dist /dist \
  && rm -rf jellyfin-web
 
-FROM debian:stable-slim as app
+FROM debian:bookworm-slim as app
 
 # https://askubuntu.com/questions/972516/debian-frontend-environment-variable
 ARG DEBIAN_FRONTEND="noninteractive"
@@ -26,11 +26,11 @@ ENV NVIDIA_DRIVER_CAPABILITIES="compute,video,utility"
 
 # https://github.com/intel/compute-runtime/releases
 ARG GMMLIB_VERSION=22.3.0
-ARG IGC_VERSION=1.0.13230.7
-ARG NEO_VERSION=23.05.25593.11
-ARG LEVEL_ZERO_VERSION=1.3.25593.11
+ARG IGC_VERSION=1.0.13463.18
+ARG NEO_VERSION=23.09.25812.14
+ARG LEVEL_ZERO_VERSION=1.3.25812.14
 
-#ARG FF_LINK=https://github.com/nyanmisaka/jellyfin-preview/raw/master/jellyfin-ffmpeg/5.1.2-9/jellyfin-ffmpeg5_5.1.2-9-bullseye_amd64.deb
+ARG FF_LINK=https://github.com/nyanmisaka/jellyfin-preview/raw/master/jellyfin-ffmpeg/6.0-3/jellyfin-ffmpeg6_6.0-3-bookworm_amd64.deb
 
 # Install dependencies:
 # curl: healthcheck
@@ -43,10 +43,9 @@ RUN apt-get update \
    openssl \
    locales \
    fonts-noto-cjk \
-   jellyfin-ffmpeg5 \
-# && wget ${FF_LINK} -O jellyfin-ffmpeg.deb \
-# && apt-get install --no-install-recommends --no-install-suggests -y ./jellyfin-ffmpeg.deb \
-# && rm -f jellyfin-ffmpeg.deb \
+ && wget ${FF_LINK} -O jellyfin-ffmpeg.deb \
+ && apt-get install --no-install-recommends --no-install-suggests -y ./jellyfin-ffmpeg.deb \
+ && rm -f jellyfin-ffmpeg.deb \
 # Intel VAAPI Tone mapping dependencies:
 # Prefer NEO to Beignet since the latter one doesn't support Comet Lake or newer for now.
 # Do not use the intel-opencl-icd package from repo since they will not build with RELEASE_WITH_REGKEYS enabled.
@@ -79,7 +78,7 @@ COPY . .
 ENV DOTNET_CLI_TELEMETRY_OPTOUT=1
 # because of changes in docker and systemd we need to not build in parallel at the moment
 # see https://success.docker.com/article/how-to-reserve-resource-temporarily-unavailable-errors-due-to-tasksmax-setting
-RUN dotnet publish Jellyfin.Server --disable-parallel --configuration Release --output="/jellyfin" --self-contained --runtime linux-x64 "-p:DebugSymbols=false;DebugType=none"
+RUN dotnet publish Jellyfin.Server --configuration Release --output="/jellyfin" --self-contained --runtime linux-x64 "-p:DebugSymbols=false;DebugType=none"
 
 FROM app
 
