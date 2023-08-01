@@ -607,6 +607,7 @@ namespace Jellyfin.Server
             }
             catch (Exception ex)
             {
+#pragma warning disable CA1305
                 Log.Logger = new LoggerConfiguration()
                     .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss}] [{Level:u3}] [{ThreadId}] {SourceContext}: {Message:lj}{NewLine}{Exception}")
                     .WriteTo.Async(x => x.File(
@@ -617,7 +618,7 @@ namespace Jellyfin.Server
                     .Enrich.FromLogContext()
                     .Enrich.WithThreadId()
                     .CreateLogger();
-
+#pragma warning disable CA1305
                 Log.Logger.Fatal(ex, "Failed to create/read logger configuration");
             }
         }

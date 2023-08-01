@@ -358,7 +358,9 @@ namespace Jellyfin.Api.Helpers
             try
             {
                 // Parses npt times in the format of '10:19:25.7'
+#pragma warning disable CA1305
                 return TimeSpan.Parse(value).Ticks;
+#pragma warning disable CA1305
             }
             catch
             {
