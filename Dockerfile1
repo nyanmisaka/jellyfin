@@ -26,11 +26,11 @@ ENV NVIDIA_DRIVER_CAPABILITIES="compute,video,utility"
 
 # https://github.com/intel/compute-runtime/releases
 ARG GMMLIB_VERSION=22.3.0
-ARG IGC_VERSION=1.0.13822.6
-ARG NEO_VERSION=23.17.26241.22
-ARG LEVEL_ZERO_VERSION=1.3.26241.22
+ARG IGC_VERSION=1.0.14062.11
+ARG NEO_VERSION=23.22.26516.18
+ARG LEVEL_ZERO_VERSION=1.3.26516.18
 
-ARG FF_LINK=https://github.com/nyanmisaka/jellyfin-preview/raw/master/jellyfin-ffmpeg/6.0-4/jellyfin-ffmpeg6_6.0-4-bookworm_amd64.deb
+ARG FF_LINK=https://github.com/nyanmisaka/jellyfin-preview/raw/master/jellyfin-ffmpeg/6.0-5/jellyfin-ffmpeg6_6.0-5-bookworm_amd64.deb
 
 # Install dependencies:
 # curl: healthcheck
