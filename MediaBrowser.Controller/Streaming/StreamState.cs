@@ -95,13 +95,13 @@ public class StreamState : EncodingJobInfo, IDisposable
 
                 if (IsSegmentedLiveStream)
                 {
-                    return 3;
+                    return 4;
                 }
 
                 return 6;
             }
 
-            return 3;
+            return 4;
         }
     }
 
