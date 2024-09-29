@@ -127,9 +127,15 @@ public partial class StripCollageBuilder
 
         // use the system fallback to find a typeface for the given CJK character
         var filteredName = NonCjkPatternRegex().Replace(libraryName ?? string.Empty, string.Empty);
-        if (!string.IsNullOrEmpty(filteredName))
+        if (!string.IsNullOrWhiteSpace(filteredName))
         {
-            typeFace = SKFontManager.Default.MatchCharacter(null, SKFontStyleWeight.Bold, SKFontStyleWidth.Normal, SKFontStyleSlant.Upright, null, filteredName[0]);
+            // now that filteredName only contains CJK characters we look for a typeface that supports these characters
+            var possibleTypeFace = SKFontManager.Default.MatchCharacter(null, SKFontStyleWeight.Bold, SKFontStyleWidth.Normal, SKFontStyleSlant.Upright, null, filteredName[0]);
+
+            if (possibleTypeFace != null)
+            {
+                typeFace = possibleTypeFace;
+            }
         }
 
         // draw library name
