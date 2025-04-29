@@ -156,7 +156,9 @@ namespace MediaBrowser.MediaEncoding.Encoder
             { 3, new string[] { "overlay_opencl", "Action to take when encountering EOF from secondary input" } },
             { 4, new string[] { "overlay_vaapi", "Action to take when encountering EOF from secondary input" } },
             { 5, new string[] { "overlay_vulkan", "Action to take when encountering EOF from secondary input" } },
-            { 6, new string[] { "transpose_opencl", "rotate by half-turn" } }
+            { 6, new string[] { "transpose_opencl", "rotate by half-turn" } },
+            { 7, new string[] { "overlay_opencl", "alpha_format" } },
+            { 8, new string[] { "overlay_cuda", "alpha_format" } }
         };
 
         // These are the library versions that corresponds to our minimum ffmpeg version 4.4 according to the version table below

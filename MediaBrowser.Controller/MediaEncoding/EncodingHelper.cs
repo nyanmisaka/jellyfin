@@ -3770,6 +3770,7 @@ namespace MediaBrowser.Controller.MediaEncoding
             {
                 if (hasSubs)
                 {
+                    var alphaFormatOpt = string.Empty;
                     if (hasGraphicalSubs)
                     {
                         var subPreProcFilters = GetGraphicalSubPreProcessFilters(swpInW, swpInH, subW, subH, reqW, reqH, reqMaxW, reqMaxH);
@@ -3787,10 +3788,13 @@ namespace MediaBrowser.Controller.MediaEncoding
                         subFilters.Add(alphaSrcFilter);
                         subFilters.Add("format=yuva420p");
                         subFilters.Add(subTextSubtitlesFilter);
+
+                        alphaFormatOpt = _mediaEncoder.SupportsFilterWithOption(FilterOptionType.OverlayCudaAlphaFormat)
+                            ? ":alpha_format=premultiplied" : string.Empty;
                     }
 
                     subFilters.Add("hwupload=derive_device=cuda");
-                    overlayFilters.Add("overlay_cuda=eof_action=pass:repeatlast=0");
+                    overlayFilters.Add($"overlay_cuda=eof_action=pass:repeatlast=0{alphaFormatOpt}");
                 }
             }
             else
@@ -3987,6 +3991,7 @@ namespace MediaBrowser.Controller.MediaEncoding
             {
                 if (hasSubs)
                 {
+                    var alphaFormatOpt = string.Empty;
                     if (hasGraphicalSubs)
                     {
                         var subPreProcFilters = GetGraphicalSubPreProcessFilters(swpInW, swpInH, subW, subH, reqW, reqH, reqMaxW, reqMaxH);
@@ -4004,10 +4009,13 @@ namespace MediaBrowser.Controller.MediaEncoding
                         subFilters.Add(alphaSrcFilter);
                         subFilters.Add("format=yuva420p");
                         subFilters.Add(subTextSubtitlesFilter);
+
+                        alphaFormatOpt = _mediaEncoder.SupportsFilterWithOption(FilterOptionType.OverlayOpenclAlphaFormat)
+                            ? ":alpha_format=premultiplied" : string.Empty;
                     }
 
                     subFilters.Add("hwupload=derive_device=opencl");
-                    overlayFilters.Add("overlay_opencl=eof_action=pass:repeatlast=0");
+                    overlayFilters.Add($"overlay_opencl=eof_action=pass:repeatlast=0{alphaFormatOpt}");
                     overlayFilters.Add("hwmap=derive_device=d3d11va:mode=write:reverse=1");
                     overlayFilters.Add("format=d3d11");
                 }
