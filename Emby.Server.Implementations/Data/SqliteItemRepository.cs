@@ -5798,6 +5798,9 @@ AND Type = @InternalPersonType)");
 
             cancellationToken.ThrowIfCancellationRequested();
 
+            // Users may replace a media with a version that includes attachments to one without them.
+            // So when saving attachments is triggered by a library scan, we always unconditionally
+            // clear the old ones, and then add the new ones if given.
             using (var connection = GetConnection())
             using (var transaction = connection.BeginTransaction())
             using (var command = connection.PrepareStatement("delete from mediaattachments where ItemId=@ItemId"))
@@ -5805,7 +5808,10 @@ AND Type = @InternalPersonType)");
                 command.TryBind("@ItemId", id);
                 command.ExecuteNonQuery();
 
-                InsertMediaAttachments(id, attachments, connection, cancellationToken);
+                if (attachments.Any())
+                {
+                    InsertMediaAttachments(id, attachments, connection, cancellationToken);
+                }
 
                 transaction.Commit();
             }

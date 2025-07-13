@@ -269,10 +269,7 @@ namespace MediaBrowser.Providers.MediaInfo
 
             _itemRepo.SaveMediaStreams(video.Id, mediaStreams, cancellationToken);
 
-            if (mediaAttachments.Any())
-            {
-                _itemRepo.SaveMediaAttachments(video.Id, mediaAttachments, cancellationToken);
-            }
+            _itemRepo.SaveMediaAttachments(video.Id, mediaAttachments, cancellationToken);
 
             if (options.MetadataRefreshMode == MetadataRefreshMode.FullRefresh
                 || options.MetadataRefreshMode == MetadataRefreshMode.Default)
