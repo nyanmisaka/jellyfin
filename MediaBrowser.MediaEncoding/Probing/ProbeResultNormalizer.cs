@@ -227,10 +227,7 @@ namespace MediaBrowser.MediaEncoding.Probing
                     FetchFromItunesInfo(iTunXml, info);
                 }
 
-                if (data.Format is not null && !string.IsNullOrEmpty(data.Format.Duration))
-                {
-                    info.RunTimeTicks = TimeSpan.FromSeconds(double.Parse(data.Format.Duration, CultureInfo.InvariantCulture)).Ticks;
-                }
+                SetVideoRuntimeTicks(data, info);
 
                 FetchWtvInfo(info, data);
 
@@ -1164,6 +1161,66 @@ namespace MediaBrowser.MediaEncoding.Probing
             }
         }
 
+        private void SetVideoRuntimeTicks(InternalMediaInfoResult result, MediaInfo data)
+        {
+            var threshold = TimeSpan.FromSeconds(1).Ticks;
+            var ticks = 0L;
+            var duration = string.Empty;
+
+            // Get duration from stream properties
+            foreach (var stream in result.Streams)
+            {
+                // Filter out non-video and audio streams that may cause inaccurate duration
+                if (stream is null
+                    || !(stream.CodecType == CodecType.Video
+                         || stream.CodecType == CodecType.Audio))
+                {
+                    continue;
+                }
+
+                ticks = 0L;
+                duration = stream.Duration;
+
+                // Get duration directly, for example MP4 container
+                if (!string.IsNullOrEmpty(duration))
+                {
+                    ticks = TimeSpan.FromSeconds(double.Parse(duration, CultureInfo.InvariantCulture)).Ticks;
+                }
+
+                // Falls back to get duration from tags, for example MKV container
+                if (ticks <= threshold)
+                {
+                    var seconds = GetRuntimeSecondsFromTags(stream) ?? 0;
+                    ticks = TimeSpan.FromSeconds(seconds).Ticks;
+
+                    // Skip the stream if we can't get any duration info from it
+                    if (ticks <= threshold)
+                    {
+                        continue;
+                    }
+                }
+
+                // Select the longest duration among all streams as RunTimeTicks
+                data.RunTimeTicks = Math.Max(ticks, data.RunTimeTicks ?? 0L);
+            }
+
+            duration = result.Format.Duration;
+
+            // Get duration from format properties
+            if (!string.IsNullOrEmpty(duration))
+            {
+                ticks = TimeSpan.FromSeconds(double.Parse(duration, CultureInfo.InvariantCulture)).Ticks;
+
+                // Falls back to format duration
+                if (data.RunTimeTicks is null
+                    || data.RunTimeTicks <= threshold
+                    || data.RunTimeTicks > ticks)
+                {
+                    data.RunTimeTicks = ticks;
+                }
+            }
+        }
+
         private int? GetBPSFromTags(MediaStreamInfo streamInfo)
         {
             if (streamInfo?.Tags is null)
@@ -1171,7 +1228,7 @@ namespace MediaBrowser.MediaEncoding.Probing
                 return null;
             }
 
-            var bps = GetDictionaryValue(streamInfo.Tags, "BPS-eng") ?? GetDictionaryValue(streamInfo.Tags, "BPS");
+            var bps = GetDictionaryValue(streamInfo.Tags, "BPS") ?? GetDictionaryValue(streamInfo.Tags, "BPS-eng");
             if (int.TryParse(bps, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedBps))
             {
                 return parsedBps;
@@ -1187,7 +1244,7 @@ namespace MediaBrowser.MediaEncoding.Probing
                 return null;
             }
 
-            var duration = GetDictionaryValue(streamInfo.Tags, "DURATION-eng") ?? GetDictionaryValue(streamInfo.Tags, "DURATION");
+            var duration = GetDictionaryValue(streamInfo.Tags, "DURATION") ?? GetDictionaryValue(streamInfo.Tags, "DURATION-eng");
             if (TimeSpan.TryParse(duration, out var parsedDuration))
             {
                 return parsedDuration.TotalSeconds;
@@ -1203,8 +1260,8 @@ namespace MediaBrowser.MediaEncoding.Probing
                 return null;
             }
 
-            var numberOfBytes = GetDictionaryValue(streamInfo.Tags, "NUMBER_OF_BYTES-eng")
-                                ?? GetDictionaryValue(streamInfo.Tags, "NUMBER_OF_BYTES");
+            var numberOfBytes = GetDictionaryValue(streamInfo.Tags, "NUMBER_OF_BYTES")
+                                ?? GetDictionaryValue(streamInfo.Tags, "NUMBER_OF_BYTES-eng");
             if (long.TryParse(numberOfBytes, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedBytes))
             {
                 return parsedBytes;
